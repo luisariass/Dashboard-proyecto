@@ -34,6 +34,11 @@ app = FastAPI(title="API Turismo - Foursquare & Google Maps", version="1.1")
 
 # SITIOS
 
+@app.get("/")
+async def read_root():
+    return {"message": "API Turismo - Foursquare & Google Maps. Visita /docs para la documentación."}
+
+
 @app.get("/foursquare/sities_clean")
 async def get_foursquare_sities(departamento: str = Query(..., min_length=2)):
     """
