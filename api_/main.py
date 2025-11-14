@@ -14,7 +14,7 @@ DB_FOURSQUARE = os.getenv("MONGODB_DATABASE_FOURSQUARE") or "foursquare_scraping
 DB_GOOGLE = os.getenv("MONGODB_DATABASE_GOOGLE") or "Googlemaps_Scraping"
 
 if not MONGO_URI:
-    raise ValueError("❌ Falta la variable MONGODB_URI en el archivo .env")
+    raise ValueError(" Falta la variable MONGODB_URI en el archivo .env")
 
 # ==========================================
 # CONEXIONES A MONGO
@@ -43,7 +43,7 @@ async def read_root():
 async def get_foursquare_sities(departamento: str = Query(..., min_length=2)):
     """
     Devuelve los sitios de Foursquare filtrados por departamento.
-    Incluye lat/lon y categoría (ideal para mapa de calor).
+    Incluye lat/lon y categoría 
     """
     try:
         filtro = {"departamento": {"$regex": departamento, "$options": "i"}}
@@ -146,6 +146,96 @@ async def get_google_sities(departamento: str = Query(..., min_length=2)):
 
     except Exception as e:
         raise HTTPException(500, detail=str(e))
+    
+
+# ==========================================
+# SITIOS GOOGLE MAPS (CON PUNTUACIÓN)
+# ==========================================
+@app.get("/google/sities_puntuacion")
+async def get_google_sities_puntuacion(departamento: str = Query(..., min_length=2)):
+    """
+    Devuelve los sitios de Google Maps filtrados por departamento.
+    Incluye municipio y puntuación 
+    """
+    try:
+        filtro = {"departamento": {"$regex": departamento, "$options": "i"}}
+
+        cursor = db_google.sities.find(
+            filtro,
+            {
+                "_id": 0,
+                "nombre": 1,
+                "categoria": 1,
+                "municipio": 1,
+                "departamento": 1,
+                "puntuacion": 1
+            },
+        )
+
+        sitios = await cursor.to_list(length=None)
+
+        if not sitios:
+            raise HTTPException(404, f"No se encontraron sitios en {departamento}")
+
+        return {
+            "fuente": "Google Maps",
+            "departamento": departamento,
+            "total": len(sitios),
+            "sitios": sitios
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==========================================
+# TIPS USUARIOS
+# ==========================================
+@app.get("/foursquare/tips_expand")
+async def get_foursquare_tips_expand(departamento: str = Query(..., min_length=2)):
+    
+    try:
+        pipeline = [
+            {
+                "$match": {
+                    "departamento": {"$regex": departamento, "$options": "i"}
+                }
+            },
+            {"$unwind": "$tips"},  # Explota el array: un registro por tip
+            {
+                "$project": {
+                    "_id": 0,
+                    "user_id": 1,
+                    "user_name": 1,
+                    "user_location": 1,
+                    "user_url": 1,
+                    "municipio": 1,
+                    "departamento": 1,
+                    "fecha_actualizacion": 1,
+                    "tip": "$tips",      # El tip individual
+                    "tips_count": 1
+                }
+            }
+        ]
+
+        cursor = db_foursquare.tips.aggregate(pipeline)
+        tips_list = await cursor.to_list(length=None)
+
+        if not tips_list:
+            raise HTTPException(
+                404,
+                f"No se encontraron tips en el departamento {departamento}"
+            )
+
+        return {
+            "fuente": "Foursquare",
+            "departamento": departamento,
+            "total_tips": len(tips_list),
+            "tips": tips_list
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 # ==========================================
