@@ -23,10 +23,14 @@ client = AsyncIOMotorClient(MONGO_URI, tlsCAFile=certifi.where())
 db_foursquare = client[DB_FOURSQUARE]
 db_google = client[DB_GOOGLE]
 
+
+
 # ==========================================
 # CONFIGURACIÓN FASTAPI
 # ==========================================
-app = FastAPI(title="API Turismo - Foursquare & Google Maps", version="1.1")
+app = FastAPI(title="API Turismo - Foursquare & Google Maps", version="2.1")
+
+
 
 # ==========================================
 # ENDPOINT FOURSQUARE
@@ -104,87 +108,8 @@ async def get_foursquare_reviewers(departamento: str = Query(..., min_length=2))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))   
 
+# TIPS
 
-# ==========================================
-# ENDPOINT GOOGLE MAPS
-# ==========================================
-@app.get("/google/sities")
-async def get_google_sities(departamento: str = Query(..., min_length=2)):
-    """
-    Devuelve los sitios de Google Maps filtrados solo por departamento.
-    Incluye puntuación y categoría.
-    """
-    try:
-        filtro = {"departamento": {"$regex": departamento, "$options": "i"}}
-        cursor = db_google.sities.find(
-            filtro,
-            {
-                "_id": 0,
-                "nombre": 1,
-                "puntuacion": 1,
-                "categoria": 1,
-                "municipio": 1,
-                "departamento": 1,
-            },
-        )
-        sitios = await cursor.to_list(length=None)
-
-        if not sitios:
-            raise HTTPException(404, f"No hay sitios en {departamento}")
-
-        return {
-            "fuente": "Google Maps",
-            "departamento": departamento,
-            "total": len(sitios),
-            "sitios": sitios,
-        }
-
-    except Exception as e:
-        raise HTTPException(500, detail=str(e))
-    
-
-# ==========================================
-# SITIOS GOOGLE MAPS (CON PUNTUACIÓN)
-# ==========================================
-@app.get("/google/sities_puntuacion")
-async def get_google_sities_puntuacion(departamento: str = Query(..., min_length=2)):
-    """
-    Devuelve los sitios de Google Maps filtrados por departamento.
-    Incluye municipio y puntuación 
-    """
-    try:
-        filtro = {"departamento": {"$regex": departamento, "$options": "i"}}
-
-        cursor = db_google.sities.find(
-            filtro,
-            {
-                "_id": 0,
-                "nombre": 1,
-                "categoria": 1,
-                "municipio": 1,
-                "departamento": 1,
-                "puntuacion": 1
-            },
-        )
-
-        sitios = await cursor.to_list(length=None)
-
-        if not sitios:
-            raise HTTPException(404, f"No se encontraron sitios en {departamento}")
-
-        return {
-            "fuente": "Google Maps",
-            "departamento": departamento,
-            "total": len(sitios),
-            "sitios": sitios
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# ==========================================
-# TIPS USUARIOS
-# ==========================================
 @app.get("/foursquare/tips_expand")
 async def get_foursquare_tips_expand(departamento: str = Query(..., min_length=2)):
     
@@ -230,6 +155,105 @@ async def get_foursquare_tips_expand(departamento: str = Query(..., min_length=2
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# ENDPOINT GOOGLE MAPS
+# ==========================================
+@app.get("/google/sities")
+async def get_google_sities(departamento: str = Query(..., min_length=2)):
+    """
+    Devuelve los sitios de Google Maps filtrados solo por departamento.
+    Incluye puntuación y categoría.
+    """
+    try:
+        filtro = {"departamento": {"$regex": departamento, "$options": "i"}}
+        cursor = db_google.sities.find(
+            filtro,
+            {
+                "_id": 0,
+                "nombre": 1,
+                "puntuacion": 1,
+                "categoria": 1,
+                "municipio": 1,
+                "departamento": 1,
+            },
+        )
+        sitios = await cursor.to_list(length=None)
+
+        if not sitios:
+            raise HTTPException(404, f"No hay sitios en {departamento}")
+
+        return {
+            "fuente": "Google Maps",
+            "departamento": departamento,
+            "total": len(sitios),
+            "sitios": sitios,
+        }
+
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+    
+
+
+# ==========================================
+# ENPONID PARA ARCHIVO EXCEL 
+# ==========================================
+
+# SITIOS 
+@app.get("/foursquare/sities_full")
+async def get_foursquare_sities_full(departamento: str = Query(..., min_length=2)):
+    """
+    Devuelve TODOS los campos de la colección sities_clean de Foursquare.
+    Filtrado por departamento.
+    """
+    try:
+        filtro = {"departamento": {"$regex": departamento, "$options": "i"}}
+        
+        cursor = db_foursquare.sities_clean.find(filtro, {"_id": 0})
+        sitios = await cursor.to_list(length=None)
+
+        if not sitios:
+            raise HTTPException(404, f"No hay sitios en {departamento}")
+
+        return {
+            "fuente": "Foursquare",
+            "departamento": departamento,
+            "total": len(sitios),
+            "sitios": sitios
+        }
+
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+
+# SITIOS GM
+
+@app.get("/google/sities_full")
+async def get_google_sities_full(departamento: str = Query(..., min_length=2)):
+    """
+    Devuelve TODOS los campos de la colección sities de Google Maps.
+    Filtrado por departamento.
+    """
+    try:
+        filtro = {"departamento": {"$regex": departamento, "$options": "i"}}
+        
+        cursor = db_google.sities.find(filtro, {"_id": 0})
+        sitios = await cursor.to_list(length=None)
+
+        if not sitios:
+            raise HTTPException(404, f"No hay sitios en {departamento}")
+
+        return {
+            "fuente": "Google Maps",
+            "departamento": departamento,
+            "total": len(sitios),
+            "sitios": sitios
+        }
+
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
 
 
 
