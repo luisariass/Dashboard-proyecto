@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api_/docker/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api_:/app
+    env_file:
+      - ./api_/.env
+    environment:
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_DATABASE_GOOGLE=${MONGODB_DATABASE_GOOGLE}
+      - MONGODB_DATABASE=${MONGODB_DATABASE}
+    networks:
+      - app-network
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard_/docker/Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./dashboard_:/app
+    depends_on:
+      - api
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
